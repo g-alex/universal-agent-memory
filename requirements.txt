@@ -1,0 +1,8 @@
+# Pinned exactly: a green CI run today must stay green next year.
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+asyncpg==0.31.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+mcp==2.2.0
+httpx==0.28.1

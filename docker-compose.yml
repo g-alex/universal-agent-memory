@@ -1,0 +1,69 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: memory
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-memorypass}
+      POSTGRES_DB: memory_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # Exposed for local tests (pytest). On a VPS, remove this line
+      # so the DB is only reachable inside the docker network.
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memory -d memory_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://memory:${POSTGRES_PASSWORD:-memorypass}@db:5432/memory_db
+      MEMORY_HOME: /data/memory
+    volumes:
+      - memory_home:/data/memory
+    ports:
+      - "${API_PORT:-8400}:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    # python:3.12-slim has no curl — probe via the stdlib, keeps the image slim
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request as u; u.urlopen('http://localhost:8000/healthz')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  worker:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://memory:${POSTGRES_PASSWORD:-memorypass}@db:5432/memory_db
+      MEMORY_HOME: /data/memory
+    volumes:
+      - memory_home:/data/memory
+    command: ["python", "-m", "app.worker"]
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+    # Port not published: the api talks to it over the internal network
+    profiles: ["local-embeddings"]
+
+volumes:
+  pgdata:
+  memory_home:
+  ollama:

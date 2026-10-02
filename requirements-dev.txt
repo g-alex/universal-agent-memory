@@ -1,0 +1,4 @@
+# Dev/test-only dependencies (runtime deps are in requirements.txt). Pinned like prod.
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0
